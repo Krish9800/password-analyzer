@@ -1,0 +1,23 @@
+services:
+  password-analyzer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: password-intelligence-analyzer:0.1.0
+    container_name: password_analyzer
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
