@@ -11,6 +11,13 @@ from password_analyzer.models.analysis import (
     PatternType,
     Severity,
 )
+from password_analyzer.models.result import (
+    PasswordAnalysisResult,
+    Recommendation,
+    ScoreAdjustment,
+    ScoreBreakdown,
+    StrengthCategory,
+)
 
 __all__ = [
     "CharacterSetAnalysis",
@@ -19,7 +26,12 @@ __all__ = [
     "DictionaryMatchType",
     "EntropyAnalysis",
     "OfflineGuessingEstimate",
+    "PasswordAnalysisResult",
     "PatternFinding",
     "PatternType",
+    "Recommendation",
+    "ScoreAdjustment",
+    "ScoreBreakdown",
     "Severity",
+    "StrengthCategory",
 ]

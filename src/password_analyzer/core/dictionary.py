@@ -174,22 +174,39 @@ def analyze_dictionary(password: str) -> list[DictionaryFinding]:
     # 5. Substring Common Password / Dictionary Word Detection
     # Scan for embedded words of length >= 4
     for candidate in common_set:
-        if len(candidate) >= 4 and candidate in pwd_lower:
-            findings.append(
-                DictionaryFinding(
-                    match_type=DictionaryMatchType.SUBSTRING_COMMON_PASSWORD,
-                    matched_word=candidate,
-                    is_exact_match=False,
-                    severity=Severity.MEDIUM,
-                    description=f"Contains common password fragment '{candidate}' as a substring.",
-                    entropy_penalty_bits=12.0,
+        if len(candidate) >= 4:
+            if candidate in pwd_lower:
+                findings.append(
+                    DictionaryFinding(
+                        match_type=DictionaryMatchType.SUBSTRING_COMMON_PASSWORD,
+                        matched_word=candidate,
+                        is_exact_match=False,
+                        severity=Severity.MEDIUM,
+                        description=(
+                            f"Contains common password fragment '{candidate}' as a substring."
+                        ),
+                        entropy_penalty_bits=14.0,
+                    )
                 )
-            )
-            break  # Record top substring match
+                break
+            if has_substitutions and candidate in leet_normalized:
+                findings.append(
+                    DictionaryFinding(
+                        match_type=DictionaryMatchType.LEET_MUTATION,
+                        matched_word=candidate,
+                        is_exact_match=False,
+                        severity=Severity.HIGH,
+                        description=(
+                            f"Contains leetspeak mutation of common password fragment "
+                            f"'{candidate}'."
+                        ),
+                        entropy_penalty_bits=16.0,
+                    )
+                )
+                break
 
     # If no common password substring, check dictionary words
     if not findings:
-        # Check against dictionary set, prioritizing longer stems
         sorted_dict = sorted([w for w in dict_set if len(w) >= 4], key=len, reverse=True)
         for word in sorted_dict:
             if word in pwd_lower:
@@ -201,6 +218,20 @@ def analyze_dictionary(password: str) -> list[DictionaryFinding]:
                         severity=Severity.LOW,
                         description=f"Contains embedded dictionary root word '{word}'.",
                         entropy_penalty_bits=8.0,
+                    )
+                )
+                break
+            if has_substitutions and word in leet_normalized:
+                findings.append(
+                    DictionaryFinding(
+                        match_type=DictionaryMatchType.LEET_MUTATION,
+                        matched_word=word,
+                        is_exact_match=False,
+                        severity=Severity.MEDIUM,
+                        description=(
+                            f"Contains leetspeak mutation of dictionary root word '{word}'."
+                        ),
+                        entropy_penalty_bits=12.0,
                     )
                 )
                 break
