@@ -109,16 +109,28 @@ password-analyzer analyze
 echo -n "CorrectHorseBatteryStaple!" | password-analyzer analyze --stdin
 ```
 
-### 2. REST API
+### 2. REST API & Local Web Dashboard
 ```bash
 # Start local API server on 127.0.0.1:8000
 password-analyzer serve --port 8000
 
-# Submit a password for evaluation
+# Submit a password for evaluation via REST
 curl -X POST http://127.0.0.1:8000/api/v1/analyze \
   -H "Content-Type: application/json" \
   -d '{"password": "SamplePassword123!"}'
+
+# Open visual web dashboard in browser
+# Navigate to: http://127.0.0.1:8000/
 ```
+
+---
+
+## Detailed Documentation
+
+- **[System Architecture](docs/architecture.md):** Modular component layout, data lifecycle, and zero-persistence boundaries.
+- **[STRIDE Threat Model](docs/threat_model.md):** Assets, threat actors, attack surface, and security controls.
+- **[Scoring Methodology & Mathematics](docs/scoring_methodology.md):** Information-theoretic entropy formulas, pool sizes, and penalty matrices.
+- **[Defensive Security Review](docs/security_review.md):** White-box security audit, CWE mappings, and ReDoS verification.
 
 ---
 
@@ -174,14 +186,14 @@ bandit -r src/
 ## Development Roadmap
 
 - [x] **Phase 1:** Architecture & repository foundation
-- [ ] **Phase 2:** Core password-analysis engine (Entropy, Patterns, Dictionary, Guess Estimations)
-- [ ] **Phase 3:** Scoring and recommendations engine
-- [ ] **Phase 4:** CLI implementation (Typer + Rich)
-- [ ] **Phase 5:** REST API implementation (FastAPI)
-- [ ] **Phase 6:** Comprehensive test suite
-- [ ] **Phase 7:** In-depth security review
-- [ ] **Phase 8:** Detailed documentation & architecture deep dive
-- [ ] **Phase 9:** DevSecOps & CI/CD pipeline
+- [x] **Phase 2:** Core password-analysis engine (Entropy, Patterns, Dictionary, Guess Estimations)
+- [x] **Phase 3:** Scoring and recommendations engine
+- [x] **Phase 4:** CLI implementation (Typer + Rich)
+- [x] **Phase 5:** REST API implementation (FastAPI) & Local Web Dashboard
+- [x] **Phase 6:** Comprehensive test suite (96% coverage)
+- [x] **Phase 7:** In-depth security review & CWE vulnerability audit
+- [x] **Phase 8:** Detailed documentation & architecture deep dive
+- [ ] **Phase 9:** DevSecOps, Docker & CI/CD pipeline
 - [ ] **Phase 10:** Final GitHub release preparation
 
 ---
