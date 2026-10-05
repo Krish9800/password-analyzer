@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Password Intelligence Analyzer | Defensive Security Lab</title>
+  <style>
+    :root {
+      --bg: #0a0e17;
+      --card-bg: #121826;
+      --border: #1e293b;
+      --accent: #00f0ff;
+      --accent-glow: rgba(0, 240, 255, 0.2);
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --red: #ef4444;
+      --yellow: #f59e0b;
+      --green: #10b981;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace; }
+    body { background: var(--bg); color: var(--text); padding: 2rem 1rem; line-height: 1.5; }
+    .container { max-width: 900px; margin: 0 auto; }
+    header { text-align: center; margin-bottom: 2rem; }
+    h1 { font-size: 2rem; color: var(--accent); margin-bottom: 0.5rem; letter-spacing: -0.5px; }
+    .badge-privacy { display: inline-block; padding: 0.25rem 0.75rem; background: rgba(0, 240, 255, 0.1); border: 1px solid var(--accent); border-radius: 999px; font-size: 0.8rem; color: var(--accent); margin-bottom: 1rem; }
+    .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
+    .input-group { position: relative; margin-bottom: 1rem; }
+    input[type="password"], input[type="text"] { width: 100%; padding: 1rem 3.5rem 1rem 1rem; background: #070a10; border: 2px solid var(--border); border-radius: 8px; color: #fff; font-size: 1.1rem; outline: none; transition: border-color 0.2s; }
+    input:focus { border-color: var(--accent); box-shadow: 0 0 10px var(--accent-glow); }
+    .toggle-btn { position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.9rem; }
+    .meter-container { height: 10px; background: #1e293b; border-radius: 5px; overflow: hidden; margin-top: 1rem; }
+    .meter-bar { height: 100%; width: 0%; transition: width 0.4s ease, background-color 0.4s ease; }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-top: 1rem; }
+    .stat-card { background: #0c121e; border: 1px solid var(--border); border-radius: 8px; padding: 1rem; text-align: center; }
+    .stat-val { font-size: 1.5rem; font-weight: bold; margin-top: 0.25rem; color: var(--accent); }
+    .stat-lbl { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; }
+    table { width: 100%; border-collapse: collapse; margin-top: 0.75rem; font-size: 0.9rem; }
+    th, td { padding: 0.75rem; text-align: left; border-bottom: 1px solid var(--border); }
+    th { color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase; }
+    .tag { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
+    .tag-CRITICAL { background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid #ef4444; }
+    .tag-HIGH { background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid #f59e0b; }
+    .tag-MEDIUM { background: rgba(59, 130, 246, 0.2); color: #3b82f6; border: 1px solid #3b82f6; }
+    .tag-LOW { background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid #10b981; }
+    .tag-INFO { background: rgba(148, 163, 184, 0.2); color: #94a3b8; border: 1px solid #94a3b8; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="badge-privacy">🔒 ZERO PERSISTENCE: Evaluated In-Memory Only</div>
+      <h1>Password Intelligence Analyzer</h1>
+      <p style="color: var(--text-muted);">Defensive credential entropy, pattern recognition, and offline guessing simulation</p>
+    </header>
+
+    <div class="card">
+      <label style="font-size: 0.9rem; font-weight: bold; margin-bottom: 0.5rem; display: block;">Enter Password to Analyze</label>
+      <div class="input-group">
+        <input type="password" id="pwdInput" placeholder="Type a password to evaluate locally..." autofocus>
+        <button class="toggle-btn" id="toggleBtn" onclick="toggleVis()">Show</button>
+      </div>
+      <div class="meter-container">
+        <div class="meter-bar" id="meterBar"></div>
+      </div>
+      <div style="display: flex; justify-content: space-between; margin-top: 0.5rem; font-size: 0.85rem;">
+        <span id="strengthLabel" style="font-weight: bold; color: var(--text-muted);">Awaiting Input...</span>
+        <span id="scoreLabel" style="color: var(--text-muted);">Score: 0 / 100</span>
+      </div>
+    </div>
+
+    <div id="resultsArea" style="display: none;">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-lbl">Effective Entropy</div>
+          <div class="stat-val" id="valEntropy">0 bits</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-lbl">Length</div>
+          <div class="stat-val" id="valLength">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-lbl">Character Pool</div>
+          <div class="stat-val" id="valPool">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-lbl">Shannon Density</div>
+          <div class="stat-val" id="valShannon">0.0</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top: 1.5rem;">
+        <h3 style="margin-bottom: 0.5rem; color: var(--accent);">Identified Weaknesses & Patterns</h3>
+        <div id="weaknessList">No weaknesses found.</div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-bottom: 0.5rem; color: var(--accent);">Estimated Resistance Against Offline Guessing</h3>
+        <table>
+          <thead>
+            <tr><th>Attack Profile & Hardware</th><th>Hash Rate</th><th>Est. Crack Time</th></tr>
+          </thead>
+          <tbody id="crackTable"></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-bottom: 0.5rem; color: var(--accent);">Defensive Recommendations (NIST SP 800-63B)</h3>
+        <div id="recList"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const input = document.getElementById('pwdInput');
+    let timeout = null;
+
+    input.addEventListener('input', () => {
+      clearTimeout(timeout);
+      timeout = setTimeout(performAnalysis, 200);
+    });
+
+    function toggleVis() {
+      const btn = document.getElementById('toggleBtn');
+      if (input.type === 'password') {
+        input.type = 'text';
+        btn.textContent = 'Hide';
+      } else {
+        input.type = 'password';
+        btn.textContent = 'Show';
+      }
+    }
+
+    async function performAnalysis() {
+      const pwd = input.value;
+      if (!pwd) {
+        document.getElementById('resultsArea').style.display = 'none';
+        document.getElementById('meterBar').style.width = '0%';
+        document.getElementById('strengthLabel').textContent = 'Awaiting Input...';
+        document.getElementById('scoreLabel').textContent = 'Score: 0 / 100';
+        return;
+      }
+
+      try {
+        const resp = await fetch('/api/v1/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: pwd })
+        });
+        if (!resp.ok) return;
+        const data = await resp.json();
+        renderResults(data);
+      } catch (err) {
+        console.error('Local analysis error:', err);
+      }
+    }
+
+    function renderResults(data) {
+      document.getElementById('resultsArea').style.display = 'block';
+      const score = data.score_breakdown.final_score;
+      const cat = data.score_breakdown.category;
+      
+      const bar = document.getElementById('meterBar');
+      bar.style.width = score + '%';
+      if (score < 20) bar.style.backgroundColor = '#ef4444';
+      else if (score < 40) bar.style.backgroundColor = '#f97316';
+      else if (score < 60) bar.style.backgroundColor = '#f59e0b';
+      else if (score < 80) bar.style.backgroundColor = '#10b981';
+      else bar.style.backgroundColor = '#00f0ff';
+
+      document.getElementById('strengthLabel').textContent = cat.replace('_', ' ');
+      document.getElementById('strengthLabel').style.color = bar.style.backgroundColor;
+      document.getElementById('scoreLabel').textContent = `Score: ${score} / 100`;
+
+      document.getElementById('valEntropy').textContent = data.entropy_analysis.effective_entropy_bits.toFixed(1) + ' bits';
+      document.getElementById('valLength').textContent = data.charset_analysis.total_length;
+      document.getElementById('valPool').textContent = data.charset_analysis.character_pool_size;
+      document.getElementById('valShannon').textContent = data.entropy_analysis.shannon_entropy_per_char.toFixed(2) + ' b/c';
+
+      // Weaknesses
+      const wList = document.getElementById('weaknessList');
+      const allFindings = [...data.dictionary_findings, ...data.pattern_findings];
+      if (allFindings.length === 0) {
+        wList.innerHTML = '<p style="color: #10b981;">✓ No common dictionary stems, keyboard walks, or repetitions identified.</p>';
+      } else {
+        wList.innerHTML = allFindings.map(f => `
+          <div style="padding: 0.5rem 0; border-bottom: 1px solid #1e293b;">
+            <span class="tag tag-${f.severity}">${f.severity}</span>
+            <strong style="margin-left: 0.5rem;">${f.match_type || f.pattern_type}</strong>
+            <p style="font-size: 0.85rem; color: #94a3b8; margin-top: 0.25rem;">${f.description} (Penalty: -${f.entropy_penalty_bits} bits)</p>
+          </div>
+        `).join('');
+      }
+
+      // Crack Table
+      const cTable = document.getElementById('crackTable');
+      cTable.innerHTML = data.offline_estimates.scenarios.map(sc => `
+        <tr>
+          <td><strong>${sc.scenario_name}</strong><br><small style="color: #94a3b8;">${sc.attacker_hardware}</small></td>
+          <td>${sc.hash_rate_description}</td>
+          <td style="color: var(--accent); font-weight: bold;">${sc.human_readable_time}</td>
+        </tr>
+      `).join('');
+
+      // Recommendations
+      const rList = document.getElementById('recList');
+      rList.innerHTML = data.recommendations.map(r => `
+        <div style="padding: 0.75rem 0; border-bottom: 1px solid #1e293b;">
+          <span class="tag tag-${r.severity}">${r.severity}</span>
+          <strong style="margin-left: 0.5rem;">${r.title}</strong>
+          <p style="font-size: 0.85rem; color: #cbd5e1; margin-top: 0.25rem;">${r.guidance}</p>
+        </div>
+      `).join('');
+    }
+  </script>
+</body>
+</html>
