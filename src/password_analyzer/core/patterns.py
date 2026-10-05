@@ -49,7 +49,7 @@ KEYPAD_RUNS = [
 def detect_repeated_characters(password: str) -> list[PatternFinding]:
     """Detect consecutive identical characters (e.g. 'aaaa', '1111').
 
-    Identifies runs of 3 or more identical characters.
+    Identifies runs of 3 or more identical characters in linear time.
     """
     findings: list[PatternFinding] = []
     if len(password) < 3:
@@ -93,11 +93,15 @@ def detect_substring_repetitions(password: str) -> list[PatternFinding]:
     if length < 4:
         return findings
 
-    # Look for repeating blocks of length 2 to length // 2
-    for block_len in range(2, (length // 2) + 1):
-        for start in range(length - 2 * block_len + 1):
+    # Look for repeating blocks up to length 16 in linear time
+    max_block_len = min(16, length // 2)
+    for block_len in range(2, max_block_len + 1):
+        start = 0
+        while start <= length - 2 * block_len:
             block = password[start : start + block_len]
-            # Check how many times this block repeats consecutively
+            if len(set(block)) == 1:
+                start += 1
+                continue
             repeats = 1
             idx = start + block_len
             while idx + block_len <= length and password[idx : idx + block_len] == block:
@@ -106,31 +110,30 @@ def detect_substring_repetitions(password: str) -> list[PatternFinding]:
 
             if repeats >= 2:
                 total_len = repeats * block_len
-                # Avoid flagging if all chars are identical (handled by detect_repeated_characters)
-                if len(set(block)) > 1:
-                    penalty = round(total_len * 2.5, 2)
-                    findings.append(
-                        PatternFinding(
-                            pattern_type=PatternType.SUBSTRING_REPEAT,
-                            matched_pattern=f"Block of {block_len} chars repeated {repeats} times",
-                            start_index=start,
-                            end_index=start + total_len,
-                            length=total_len,
-                            severity=Severity.HIGH if repeats > 2 else Severity.MEDIUM,
-                            description=(
-                                f"Repeated block pattern of length {block_len} repeated "
-                                f"{repeats} times consecutively."
-                            ),
-                            entropy_penalty_bits=penalty,
-                        )
+                penalty = round(total_len * 2.5, 2)
+                findings.append(
+                    PatternFinding(
+                        pattern_type=PatternType.SUBSTRING_REPEAT,
+                        matched_pattern=f"Block of {block_len} chars repeated {repeats} times",
+                        start_index=start,
+                        end_index=start + total_len,
+                        length=total_len,
+                        severity=Severity.HIGH if repeats > 2 else Severity.MEDIUM,
+                        description=(
+                            f"Repeated block pattern of length {block_len} repeated "
+                            f"{repeats} times consecutively."
+                        ),
+                        entropy_penalty_bits=penalty,
                     )
-                    return findings  # Return primary match to avoid duplicate overlapping chunks
+                )
+                return findings
+            start += 1
 
     return findings
 
 
 def detect_sequential_patterns(password: str) -> list[PatternFinding]:
-    """Detect alphabetic and numeric sequential progressions (e.g. '12345', 'abcdef', 'dcba')."""
+    """Detect alphabetic and numeric sequential progressions in linear time."""
     findings: list[PatternFinding] = []
     length = len(password)
     if length < 3:
@@ -228,84 +231,53 @@ def detect_sequential_patterns(password: str) -> list[PatternFinding]:
 
 
 def detect_keyboard_walks(password: str) -> list[PatternFinding]:
-    """Detect spatial keyboard walks along rows, columns, and keypads."""
+    """Detect spatial keyboard walks along rows, columns, and keypads in linear time."""
     findings: list[PatternFinding] = []
     length = len(password)
     if length < 3:
         return findings
 
     lower_pwd = password.lower()
+    all_walk_paths = (
+        KEYBOARD_ROWS
+        + [r[::-1] for r in KEYBOARD_ROWS]
+        + [c.lower() for c in KEYBOARD_COLS]
+        + [c.lower()[::-1] for c in KEYBOARD_COLS]
+        + KEYPAD_RUNS
+    )
 
-    # Check horizontal rows (forward and reverse)
-    for row in KEYBOARD_ROWS:
-        rev_row = row[::-1]
-        for run_len in range(length, 2, -1):
-            for start in range(length - run_len + 1):
-                chunk = lower_pwd[start : start + run_len]
-                if chunk in row or chunk in rev_row:
-                    if not any(
-                        f.start_index == start and f.end_index == start + run_len for f in findings
-                    ):
-                        penalty = round(run_len * 3.2, 2)
-                        findings.append(
-                            PatternFinding(
-                                pattern_type=PatternType.KEYBOARD_WALK,
-                                matched_pattern=f"Horizontal keyboard walk ({run_len} keys)",
-                                start_index=start,
-                                end_index=start + run_len,
-                                length=run_len,
-                                severity=Severity.HIGH if run_len >= 4 else Severity.MEDIUM,
-                                description=(
-                                    f"Spatial horizontal keyboard walk pattern of {run_len} keys."
-                                ),
-                                entropy_penalty_bits=penalty,
-                            )
-                        )
+    i = 0
+    while i < length - 2:
+        best_run = 0
+        prefix = lower_pwd[i : i + 3]
+        for path in all_walk_paths:
+            if prefix in path:
+                run_len = 3
+                while i + run_len <= length and lower_pwd[i : i + run_len] in path:
+                    run_len += 1
+                run_len -= 1
+                if run_len > best_run:
+                    best_run = run_len
 
-    # Check vertical columns
-    for col in KEYBOARD_COLS:
-        col_lower = col.lower()
-        col_rev = col_lower[::-1]
-        for run_len in range(length, 2, -1):
-            for start in range(length - run_len + 1):
-                chunk = lower_pwd[start : start + run_len]
-                if chunk in col_lower or chunk in col_rev:
-                    if not any(
-                        f.start_index == start and f.end_index == start + run_len for f in findings
-                    ):
-                        penalty = round(run_len * 3.5, 2)
-                        findings.append(
-                            PatternFinding(
-                                pattern_type=PatternType.KEYBOARD_WALK,
-                                matched_pattern=f"Vertical keyboard column walk ({run_len} keys)",
-                                start_index=start,
-                                end_index=start + run_len,
-                                length=run_len,
-                                severity=Severity.HIGH,
-                                description=(
-                                    f"Spatial vertical keyboard column walk of {run_len} keys."
-                                ),
-                                entropy_penalty_bits=penalty,
-                            )
-                        )
+        if best_run >= 3:
+            penalty = round(best_run * 3.2, 2)
+            findings.append(
+                PatternFinding(
+                    pattern_type=PatternType.KEYBOARD_WALK,
+                    matched_pattern=f"Keyboard walk ({best_run} keys)",
+                    start_index=i,
+                    end_index=i + best_run,
+                    length=best_run,
+                    severity=Severity.HIGH if best_run >= 4 else Severity.MEDIUM,
+                    description=f"Spatial keyboard layout walk of {best_run} keys.",
+                    entropy_penalty_bits=penalty,
+                )
+            )
+            i += best_run
+        else:
+            i += 1
 
-    # Filter out redundant substrings contained inside longer matches
-    filtered: list[PatternFinding] = []
-    for f in findings:
-        is_sub = False
-        for other in findings:
-            if (
-                other is not f
-                and other.start_index <= f.start_index
-                and other.end_index >= f.end_index
-            ):
-                if other.length > f.length:
-                    is_sub = True
-                    break
-        if not is_sub and f not in filtered:
-            filtered.append(f)
-
-    return filtered
+    return findings
 
 
 def analyze_all_patterns(password: str) -> list[PatternFinding]:

@@ -71,38 +71,44 @@ def calculate_score(
     elif classes_present == 2:
         diversity_points = 5.0
 
-    base_score = min(50.0, length_points + diversity_points)
+    if charset.unique_characters <= 1:
+        base_score = min(5.0, length_points)
+    else:
+        base_score = min(50.0, length_points + diversity_points)
 
     # 2. Entropy Contribution (max 30 pts)
     # 85 bits of effective entropy provides the full 30 points
     entropy_contribution = min(30.0, max(0.0, entropy.effective_entropy_bits * 0.35))
 
     # 3. Explicit Bonuses
-    if length >= 16:
-        bonuses.append(
-            ScoreAdjustment(
-                name="Length Resilience (>= 16 chars)",
-                points=10.0,
-                reason="Password length of 16+ provides a large combinatorial search barrier.",
-            )
-        )
-    elif length >= 12:
-        bonuses.append(
-            ScoreAdjustment(
-                name="Adequate Length (>= 12 chars)",
-                points=5.0,
-                reason="Meets recommended 12-character baseline for general authentication.",
-            )
-        )
+    has_substantive_entropy = entropy.effective_entropy_bits > 5.0 and charset.unique_characters > 2
 
-    if length >= 20:
-        bonuses.append(
-            ScoreAdjustment(
-                name="Passphrase Scale (>= 20 chars)",
-                points=5.0,
-                reason="Exceptional length characteristic of multi-word passphrases.",
+    if has_substantive_entropy:
+        if length >= 16:
+            bonuses.append(
+                ScoreAdjustment(
+                    name="Length Resilience (>= 16 chars)",
+                    points=10.0,
+                    reason="Password length of 16+ provides a large combinatorial search barrier.",
+                )
             )
-        )
+        elif length >= 12:
+            bonuses.append(
+                ScoreAdjustment(
+                    name="Adequate Length (>= 12 chars)",
+                    points=5.0,
+                    reason="Meets recommended 12-character baseline for general authentication.",
+                )
+            )
+
+        if length >= 20:
+            bonuses.append(
+                ScoreAdjustment(
+                    name="Passphrase Scale (>= 20 chars)",
+                    points=5.0,
+                    reason="Exceptional length characteristic of multi-word passphrases.",
+                )
+            )
 
     if charset.unicode_count > 0:
         bonuses.append(
