@@ -1,203 +1,163 @@
-# Password Intelligence Analyzer
+# Password Intelligence Analyzer (`password-analyzer`)
 
-> **Educational Defensive Security Project (Cybersecurity Portfolio — Project 01)**
-> A production-inspired, privacy-preserving credential evaluation engine analyzing password entropy, combinatorial space, character-set diversity, sequential and keyboard patterns, common dictionary leaks, and estimated resistance against offline guessing models.
+Enterprise Password Intelligence, Shannon Entropy Evaluator, Combinatorial Crack-Time Modeler, NIST SP 800-63B Policy Verifier, and HaveIBeenPwned k-Anonymity Integration.
 
----
-
-## 🔒 Privacy & Security Guarantee
-
-> [!IMPORTANT]
-> **Zero Credential Persistence Policy:**
-> - No password data is intentionally persisted.
-> - Submitted passwords are never written to disk, database, or logs.
-> - Passwords are processed strictly in local memory and purged immediately after analysis.
-> - No remote telemetry, analytics, or external API calls are made.
-> - Estimated offline guess resistances are educational models under specific assumptions, not absolute guarantees.
+[![CI Pipeline](https://github.com/Krish9800/password-analyzer/actions/workflows/ci.yml/badge.svg)](https://github.com/Krish9800/password-analyzer/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python: 3.12](https://img.shields.io/badge/Python-3.12-blue.svg)](https://www.python.org/)
+[![Standards: NIST SP 800-63B](https://img.shields.io/badge/Standards-NIST%20SP%20800--63B-blueviolet.svg)](https://pages.nist.gov/800-63-3/sp800-63b.html)
+[![Privacy: k-Anonymity](https://img.shields.io/badge/Privacy-k--Anonymity%20API-green.svg)](https://haveibeenpwned.com/API/v3#PwnedPasswords)
 
 ---
 
-## Overview
+## Overview & Problem Statement
 
-Modern authentication security requires understanding credential strength beyond simplistic regex rules (e.g., "must contain 1 number and 1 symbol"). Attackers do not guess passwords character-by-character; they use probabilistic dictionary attacks, rule-based mutations (leetspeak, prefix/suffix additions), and specialized hardware (GPUs/FPGAs/ASICs) to execute billions of hashes per second against dumped hashes.
+Weak, reused, and compromised passwords remain the root cause of credential-stuffing breaches. Legacy password policies that mandate arbitrary special characters or frequent expiration frequently encourage predictable patterns (e.g. `Password123!`), while modern standards (NIST SP 800-63B) advocate for length, entropy, and checking against known breach corpuses.
 
-The **Password Intelligence Analyzer** evaluates passwords locally against real-world attacker techniques, providing:
-1. **Accurate Information-Theoretic Entropy:** Shannon entropy, charset-space theoretical entropy, and dictionary-adjusted effective entropy.
-2. **Multi-Vector Pattern Detection:** Repeated characters, alphabetical sequences, numeric runs, and physical keyboard walks (QWERTY layout).
-3. **Dictionary & Leetspeak Weakness Detection:** Identification of known common passwords, root word stems, and common substitution mutations.
-4. **Hardware-Aware Offline Guessing Models:** Clear time-to-crack estimations across hashing algorithms (e.g., MD5/SHA-256 vs. bcrypt vs. Argon2id) and attacker tiers (consumer GPU vs. multi-GPU cluster).
-5. **Explainable Scoring & Defense Guidance:** Transparent penalty/bonus breakdown and actionable security recommendations.
+**Password Intelligence Analyzer** is a privacy-preserving credential evaluation engine. It computes mathematical Shannon entropy, detects keyboard walk patterns, checks compliance with NIST SP 800-63B, models offline crack times against multi-GPU clusters, queries the HaveIBeenPwned API via privacy-preserving **k-Anonymity**, and provides an interactive local web dashboard.
 
 ---
 
-## Architecture
+## Architecture & Data Flow
 
-The project is structured into cleanly isolated, single-responsibility modules:
+```mermaid
+flowchart TD
+    CandidatePassword[Candidate Password] --> Anonymizer[k-Anonymity SHA-1 Hasher]
 
+    subgraph Privacy-Preserving Breach Check
+        Anonymizer --> Prefix[Extract 5-Char Hash Prefix]
+        Prefix --> HIBP[HIBP Pwned Passwords API Query]
+        HIBP --> SuffixMatcher[Local Suffix Hash Matcher]
+        SuffixMatcher --> BreachStatus[Breach Frequency Count]
+    end
+
+    subgraph Mathematical & Pattern Analysis
+        CandidatePassword --> EntropyEngine[Shannon & Metric Entropy Calculator]
+        CandidatePassword --> CharsetAnalysis[Character Diversity & Length Evaluator]
+        CandidatePassword --> PatternDetector[Keyboard Walk & Sequence Detector]
+        CandidatePassword --> DictCheck[Common Wordlist & Leet-Speak Matcher]
+    end
+
+    subgraph Synthesis & Estimation
+        EntropyEngine --> Synthesizer[Security Policy & Crack Time Modeler]
+        CharsetAnalysis --> Synthesizer
+        PatternDetector --> Synthesizer
+        DictCheck --> Synthesizer
+        BreachStatus --> Synthesizer
+
+        Synthesizer --> NIST[NIST SP 800-63B Compliance Verdict]
+        Synthesizer --> CrackTime[Offline Attack Resistance Model: Hashcat / GPU]
+        Synthesizer --> Score[Composite Strength Score: 0 to 100]
+    end
+
+    subgraph Interfaces
+        Score --> CLI[Typer CLI / Rich Terminal]
+        Score --> REST[FastAPI REST API / Local Web UI]
+    end
 ```
-password-intelligence-analyzer/
-├── src/
-│   └── password_analyzer/
-│       ├── config/          # Central settings, constants, and thresholds
-│       ├── core/            # Entropy, pattern detection, dictionary matching, crack estimators
-│       ├── models/          # Pydantic data schemas for analysis results and findings
-│       ├── services/        # Orchestration layer coordinating analyzers and scoring
-│       ├── api/             # FastAPI REST endpoints with zero-log middleware
-│       ├── cli/             # Interactive CLI using Typer and Rich
-│       └── utils/           # String hygiene, timing-safe checks, and zeroization helpers
-├── tests/
-│   ├── unit/                # Unit tests for individual analysis engines
-│   ├── integration/         # API and CLI end-to-end integration tests
-│   └── security/            # Privacy leaks, logging verification, and edge case fuzzing
-├── docs/
-│   ├── architecture.md      # Comprehensive architecture documentation
-│   └── threat_model.md      # STRIDE threat model & risk analysis
-├── data/
-│   └── wordlists/           # Common passwords and dictionary files
-└── pyproject.toml           # Modern package configuration
-```
 
 ---
 
-## Features
+## Verified Features
 
-- **Entropy Engine:** Calculates both raw Shannon entropy and charset-space entropy ($L \cdot \log_2(|S|)$) along with effective pattern-discounted entropy.
-- **Pattern Matcher:**
-  - Repeated sequences (e.g., `aaaa`, `abcabc`).
-  - Sequential runs (e.g., `123456`, `abcdef`, `fedcba`).
-  - Keyboard walks (e.g., `qwerty`, `asdfgh`, `zxcvbn`).
-  - Common leetspeak substitutions (e.g., `@` $\to$ `a`, `0` $\to$ `o`, `3` $\to$ `e`, `$` $\to$ `s`).
-- **Offline Guess Resistance:**
-  - Fast unkeyed hashes (MD5, SHA-256).
-  - Slow memory-hard / work-factor hashes (bcrypt cost 12, Argon2id).
-  - Online throttled attack scenario (10 attempts/minute).
-- **Explainable Scoring:** A baseline score (0–100) dynamically constructed from length, charset variety, entropy, with transparent itemized penalties.
-- **Defensive Recommendations:** Actionable NIST SP 800-63B compliant guidance.
-- **Dual Interfaces:** Interactive terminal CLI and local REST API.
+- **Mathematical Entropy Calculation:** Computes true Shannon entropy and metric entropy based on character set pools and information theory.
+- **Pattern & Heuristic Detection:** Identifies sequential runs (`123456`, `abcdef`), keyboard walks (`qwerty`, `asdfgh`), repeated characters (`aaaaa`), and common leet-speak substitutions (`p@ssw0rd`).
+- **NIST SP 800-63B Verification:** Validates against modern guidelines (minimum length, absence of truncated spaces, no forced character composition rules).
+- **k-Anonymity Breach Checks:** Safely queries HaveIBeenPwned by submitting only the first 5 characters of the SHA-1 hash; the plain password never leaves the machine.
+- **Offline Crack-Time Estimation:** Calculates estimated brute-force resistance across single CPU, consumer GPU, and enterprise multi-GPU cracking clusters.
+- **Dual Interface:** Typer CLI with terminal formatting, plus an embedded FastAPI service with an interactive local web dashboard.
 
 ---
 
-## Installation
+## Technology Stack
 
-### Prerequisites
-- Python 3.12+
-- Git
+- **Runtime:** Python 3.12+
+- **HTTP Client:** HTTPX (for k-Anonymity API queries)
+- **Data Models:** Pydantic v2
+- **CLI Framework:** Typer & Rich
+- **API & UI Framework:** FastAPI & Jinja2 HTML templates
+- **Testing:** Pytest, Ruff, Mypy, Bandit
 
-### Setup
+---
+
+## Requirements & Installation
+
 ```bash
-# Clone and enter the repository
-cd password-intelligence-analyzer
+# Clone the repository
+git clone https://github.com/Krish9800/password-analyzer.git
+cd password-analyzer
 
 # Create and activate virtual environment
 python3 -m venv .venv
 source .venv/bin/activate
 
-# Install package in editable mode with development tools
-pip install -e ".[dev]"
+# Install dependencies
+pip install -e .
 ```
 
 ---
 
-## Usage
+## Verified Usage Examples
 
-### 1. Interactive CLI
+### 1. Command-Line Interface (CLI)
+
 ```bash
-# Interactive prompt (password is hidden during entry)
-password-analyzer analyze
+# Analyze a candidate password for strength and entropy
+password-analyzer analyze "CorrectHorseBatteryStaple!"
 
-# Pass directly via standard input (safe for script pipelines without exposing to bash history)
-echo -n "CorrectHorseBatteryStaple!" | password-analyzer analyze --stdin
+# Analyze with breach database check enabled
+password-analyzer analyze "P@ssw0rd123" --check-breaches
+
+# Check CLI version
+password-analyzer version
 ```
 
-### 2. REST API & Local Web Dashboard
+### 2. Local Web Dashboard & REST API
+
 ```bash
-# Start local API server on 127.0.0.1:8000
-password-analyzer serve --port 8000
-
-# Submit a password for evaluation via REST
-curl -X POST http://127.0.0.1:8000/api/v1/analyze \
-  -H "Content-Type: application/json" \
-  -d '{"password": "SamplePassword123!"}'
-
-# Open visual web dashboard in browser
-# Navigate to: http://127.0.0.1:8000/
+# Launch the local web dashboard and REST API
+password-analyzer serve --host 127.0.0.1 --port 8000
 ```
 
----
-
-## Detailed Documentation
-
-- **[System Architecture](docs/architecture.md):** Modular component layout, data lifecycle, and zero-persistence boundaries.
-- **[STRIDE Threat Model](docs/threat_model.md):** Assets, threat actors, attack surface, and security controls.
-- **[Scoring Methodology & Mathematics](docs/scoring_methodology.md):** Information-theoretic entropy formulas, pool sizes, and penalty matrices.
-- **[Defensive Security Review](docs/security_review.md):** White-box security audit, CWE mappings, and ReDoS verification.
+Open `http://127.0.0.1:8000` in your browser to access the local interactive evaluation UI, or explore OpenAPI documentation at `http://127.0.0.1:8000/docs`:
+- `GET /` — Local web evaluation interface
+- `POST /api/v1/analyze` — Programmatic credential analysis endpoint
+- `GET /health` — Service health status
 
 ---
 
-## Security & Privacy Model
-
-1. **Local Processing Only:** All evaluations occur entirely within local process memory. No outbound network requests are initiated.
-2. **Ephemeral Memory:** Passwords are not cached, saved, or indexed.
-3. **Sanitized Logs:** Logging configurations explicitly filter sensitive fields. Neither CLI output nor API request logs output raw passwords.
-4. **Input Boundary Enforcement:** Inputs are bounded (maximum length 512 characters) to mitigate regex/algorithmic complexity DoS (ReDoS).
-
----
-
-## Threat Model Summary (STRIDE)
-
-| Threat Type | Potential Vector | Mitigation in Analyzer |
-| :--- | :--- | :--- |
-| **Spoofing** | Unauthorized access to local analysis | Analyzer runs as local user tool without elevated privileges |
-| **Tampering** | Modification of dictionary/rule files | Internal integrity checks on packaged reference sets |
-| **Repudiation** | Ambiguity in evaluation results | Deterministic, explainable scoring criteria |
-| **Information Disclosure** | Credential leakage in logs or crash dumps | Custom logging filters, masked CLI input, zero log persistence |
-| **Denial of Service** | Extremely large password inputs / ReDoS | Strict string length limits (max 512 chars) & linear-time pattern matching |
-| **Elevation of Privilege** | Code execution via tainted input | Pure Python logic, no shell execution (`shell=False`), non-root container |
-
----
-
-## Limitations
-
-- **Not an Absolute Guarantee:** Password security is systemic. A password evaluated as "Very Strong" can still be compromised via phishing, infostealer malware, session hijacking, or credential reuse if breached elsewhere.
-- **Offline Estimation Heuristics:** Guess times depend on attacker budgets, custom ASIC availability, and hash algorithm implementations.
-- **Synthetic Lexicon:** Dictionary matching uses curated offline wordlists and does not guarantee coverage of every niche language or slang.
-
----
-
-## Testing
+## Testing & Quality Gates
 
 ```bash
-# Run unit, integration, and security tests with coverage
+# Run unit and entropy calculation tests
 pytest --cov=password_analyzer --cov-report=term-missing
 
-# Run code style and lint checks
+# Linting and static analysis
 ruff check .
-black --check .
-
-# Run static type checking
-mypy src/
-
-# Run security static analysis
-bandit -r src/
+ruff format --check .
+mypy src/password_analyzer
 ```
 
 ---
 
-## Development Roadmap
+## Security Model & Privacy Guarantees
 
-- [x] **Phase 1:** Architecture & repository foundation
-- [x] **Phase 2:** Core password-analysis engine (Entropy, Patterns, Dictionary, Guess Estimations)
-- [x] **Phase 3:** Scoring and recommendations engine
-- [x] **Phase 4:** CLI implementation (Typer + Rich)
-- [x] **Phase 5:** REST API implementation (FastAPI) & Local Web Dashboard
-- [x] **Phase 6:** Comprehensive test suite (96% coverage)
-- [x] **Phase 7:** In-depth security review & CWE vulnerability audit
-- [x] **Phase 8:** Detailed documentation & architecture deep dive
-- [x] **Phase 9:** DevSecOps, Docker & CI/CD pipeline
-- [x] **Phase 10:** Final GitHub release preparation
+- **k-Anonymity Architecture:** When checking breach databases, the full password is never sent over the wire. Only a 5-character SHA-1 prefix is transmitted, and matching is completed locally.
+- **Zero Disk Persistence:** Analyzed passwords are evaluated strictly in transient memory and are never logged, persisted to disk, or stored in history files.
+- **Local Isolation:** The web dashboard runs on localhost without tracking cookies, external CDN scripts, or third-party telemetry.
 
 ---
 
-## Responsible & Ethical Use
+## Limitations & Known Issues
 
-This software is developed strictly for defensive, educational, and audit purposes. It is intended to help developers, administrators, and users understand credential vulnerabilities and implement robust authentication policies.
+- **Offline Mode:** When network access is disabled, k-Anonymity breach checking is skipped and analysis relies on local dictionary and heuristic evaluation.
+- **Custom Corporate Dictionaries:** Incorporating internal organization-specific wordlists requires passing a custom dictionary file path.
+
+---
+
+## License & Responsible Use
+
+This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
+
+> [!NOTE]
+> Designed for security researchers, authentication system designers, and credential auditing.
